@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import {filterImageFromURL, deleteLocalFiles} from './util/util';
 import fs from 'fs';
@@ -45,25 +45,35 @@ import path from 'path';
   // Displays a simple message to the user
   // app. ist die Anwendung, "/" Endpoint der erreicht wird wenn nicht genauer über URL definiert
 
-  app.get( "/", async ( req, res ) => {
+  app.get( "/", async ( req:Request, res:Response ) => {
     res.send("try GET /filteredimage?image_url={{}}")
   } );
 
-  app.get( "/filteredimage", ( req, res ) => {
-    let { image_url} = req.query;
+  app.get( "/filteredimage", ( req:Request, res:Response ) => {
+    const {image_url}: {image_url: string}= req.query;
     console.log (image_url);
-    let filteredImage = filterImageFromURL(image_url);
+    let filteredImage = filterImageFromURL(image_url).catch(error=>{
+      res.status(422).send('image could not be filtered');
+      
+    });
 
-    filteredImage.then( imagePath =>{
+    filteredImage.then( (imagePath :string | void) =>{
       console.log(imagePath);
       console.log('try send ' + imagePath);
+      if (!imagePath) { 
+        return res.status(422).send('image could not be filtered');
+      }
+        
       res.status(200).sendFile(imagePath, function (err){
-        deleteLocalFiles([imagePath]);
+        if (err) {
+        res.status(422).send('image could not be filtered');
+        
+        } else {
+        deleteLocalFiles([imagePath]);  
+        }
+        
       });
-
-    
-  }
-
+      }
     )
   } );
   // send image URL -> Die Adresse des Bild das angezeigt werden soll, wird festgelegt, in dem bsp https://i0.wp.com/www.mobiflip.de/wp-content/uploads/2020/03/audi-e-tron-gt-front-header.jpg?w=1200&ssl=1
